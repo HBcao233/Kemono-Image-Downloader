@@ -1,0 +1,80 @@
+<!-- popup.html -->
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      width: 400px;
+    }
+
+    html {
+      min-height: 5em;
+      min-width: 10em;
+      background: #fff;
+    }
+
+    .main {
+      width: 100%;
+      border-radius: 10px;
+    }
+
+    .btn {
+      border: 1px solid #1DA1F2;
+      padding: 2px 7px;
+      border-radius: 10px;
+    }
+
+    .tag {
+      display: inline-block;
+      background-color: #FFFFFF;
+      color: #1DA1F2;
+      padding: 0 10px;
+      border-radius: 10px;
+      border: 1px solid #1DA1F2;
+      font-weight: bold;
+      margin: 5px;
+    }
+
+    .tag:hover:after {
+      content: attr('title');
+      position: absolute;
+      left: 80%;
+      height: 0;
+      border-right: 8px solid #d9444a;
+      border-top: 8px solid transpatrnt;
+      border-bottom: 8px solid transparent;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="main">
+    <h3 style="margin: 10px 20px;">
+      下载设置
+      <label class="btn" style="float: right;">保存</label>
+    </h3>
+    <div style="margin: 10px; border: 1px solid rgb(204, 204, 204); border-radius: 5px;">
+      <label style="display: block; margin: 10px 15px;">
+        文件名格式
+        <textarea style="display: block; width: 100%; min-height: 100px; font-size: inherit;"></textarea>
+      </label>
+      <label style="display: table; margin: 10px;">
+        <span class="tag" title="作者">{author}</span>
+        <span class="tag" title="标题">{title}</span>
+        <span class="tag" title="来源，例如(Pixiv Fanbox)">{source}</span>
+        <span class="tag" title="日期,eg:2022-05-15">{date}</span>
+        <span class="tag" title="时间，:会被替换为-,eg:15-12-30">{time}</span>
+        <span class="tag" title="地址栏中user/后面的一串数字">{userid}</span>
+        <span class="tag" title="地址栏中post/后面的一串数字">{postid}</span>
+        <span class="tag" title="以0开头的图片编号">{index}</span>
+        <span class="tag" title="以1开头的图片编号">{index+1}</span>
+        <span class="tag" title="图片后缀">{ext}</span>
+      </label>
+    </div>
+  </div>
+  <script src="js/popup.js"></script>
+</body>
+
+</html>

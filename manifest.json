@@ -1,0 +1,38 @@
+{
+    "name": "Kemono img downloader",
+    "version": "0.0.1",
+    "manifest_version": 3,
+    "description": "An extension to download kemono imgs.",
+    "icons": {
+        "32": "icons/favicon32x32.png"
+    },
+    "action": {
+        "default_popup": "popup.html"
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "https://*.kemono.party/*/user/*/post/*",
+				"https://*.kemono.su/*/user/*/post/*"
+            ],
+            "js": [
+                "js/main.js"
+            ]
+        },
+        {
+            "matches": [
+                "https://*.fanbox.cc/*"
+            ],
+            "js": [
+                "js/fanbox.js"
+            ]
+        }
+    ],
+    "background": {
+        "service_worker": "js/background.js"
+    },
+    "permissions": [
+        "downloads",
+        "storage"
+    ]
+}
