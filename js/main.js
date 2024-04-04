@@ -109,7 +109,6 @@ const KD = (function () {
               .replaceAll('{index}', i)
               .replaceAll('{index+1}', i + 1)
               .replaceAll('{ext}', ext);
-            // console.log(name);
             that.downloader.add({
               url: url,
               name: name,
@@ -137,7 +136,6 @@ const KD = (function () {
               .replaceAll('{index}', filename)
               .replaceAll('{index+1}', filename)
               .replaceAll('{ext}', ext);
-
             that.downloader.add({
               url: url,
               name: name,
@@ -172,7 +170,19 @@ const KD = (function () {
             thread--;
             this.next();
           } else {
-            console.error(task.error);
+            if (task.error.error == "USER_CANCELED") {
+              if (!task.error.exists) {
+                let time = parseInt(Date.parse(new Date()) / 1000);
+                console.log('[' + time + ']', task.id, '用户取消');
+              }
+              now++;
+              this.update();
+              thread--;
+              this.next();
+            } else {
+              console.error(task);
+            }
+            
           }
         },
         retry: function (task, result) {

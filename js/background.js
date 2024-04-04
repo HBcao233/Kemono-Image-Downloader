@@ -6,6 +6,38 @@ chrome.storage.sync.get('format', (res) => {
   }
 });
 
+function getNow() {
+  let t = new Date();
+  return  `${t.getFullYear()}/${(t.getMonth() + 1)}/${t.getDate()} ${t.getHours()}:${t.getMinutes()}:${t.getSeconds()}`;
+}
+
+function addTask(name, bgid) {
+  chrome.storage.sync.get('tasks', (res)=>{
+    let tasks = res.tasks || [];
+    tasks.push({
+      name: name,
+      bgid: bgid,
+    });
+    chrome.storage.sync.set({
+      tasks: tasks,
+    });
+  });
+}
+
+function removeTask(bgid) {
+  chrome.storage.sync.get('tasks', (res)=>{
+    let tasks = res.tasks || [];
+    for (let i in tasks) {
+      if (tasks[i].bgid == bgid) {
+        tasks.splice(i, 1);
+        break;
+      }
+    }
+    chrome.storage.sync.set({
+      tasks: tasks,
+    });
+  });
+}
 
 function download(url, filename, conflictAction = 'overwrite') {
   return new Promise(resolve => {
@@ -15,6 +47,7 @@ function download(url, filename, conflictAction = 'overwrite') {
       conflictAction: conflictAction,
       saveAs: false,
     }, (id) => {
+      addTask(filename, id);
       resolve(id);
     });
   });
@@ -57,14 +90,25 @@ function wait_complete(bgid) {
 chrome.runtime.onMessage.addListener(async function (message, sender, sendResponse) {
   sendResponse();
   if (message.task) {
-    var time;
     var bgid = await download(message.task.url, message.task.name);
-    time = parseInt(Date.parse(new Date()) / 1000);
-    log('[' + time + ']', bgid, '开始');
+    log('[' + getNow() + ']', message.task.name, '('+bgid+')', '开始');
 
     var res = await wait_complete(bgid);
-    time = parseInt(Date.parse(new Date()) / 1000);
-    log('[' + time + ']', bgid, '完成');
+    removeTask(bgid);
+
+    log('[' + getNow() + ']', message.task.name, '('+bgid+')', '完成');
     sendMessageToContentScript({ task: res });
   }
 });
+
+
+chrome.downloads.onDeterminingFilename.addListener(
+  (item, suggest)=>{
+    // log(item);
+    if (item.exists) {
+      chrome.downloads.cancel(item.id)
+      log('[' + getNow() + ']', '('+item.id+')', '文件已存在');
+    }
+    return true;
+  }
+)
