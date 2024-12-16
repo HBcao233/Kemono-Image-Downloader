@@ -1,4 +1,6 @@
-const css = `
+(function () {
+  'use strict';
+  const css = `
 .ke{
   position: fixed;
   width:30px;
@@ -14,39 +16,42 @@ const css = `
   text-align: center;
 }
 `;
+  const style = document.createElement("style");
+  style.innerHTML = css;
+  document.body.appendChild(style);
 
-var style = document.createElement("style");
-style.innerHTML = css;
-document.body.appendChild(style);
+  let users = {};
+  const main = async () => {
+    let ke = document.getElementsByClassName("ke")[0];
+    if (ke != null) document.body.removeChild(ke);
 
-function main() {
-  let ke = document.getElementsByClassName("ke")[0];
-  if (ke != null) document.body.removeChild(ke);
+    let creatorId = window.location.href.match(/(?<=@)([^\/]*)|(?<=https:\/\/(?!www))([^.]*)/);
+    creatorId = creatorId && creatorId[0];
+    if (creatorId == null) return;
 
-  creatorId = (t = /(?<=@)([^\/]*)|(?<=https:\/\/(?!www))([^.]*)/i.exec(window.location.href)) != null ? t[0] : null;
-  if (creatorId == null) return;
-  postId = /(?<=posts\/)([^\/]*)/i.exec(window.location.href) != null ? /(?<=posts\/)([^\/]*)/i.exec(window.location.href)[0] : null;
-  url = "https://api.fanbox.cc/creator.get?creatorId=" + creatorId;
-  fetch(url)
-    // fetch()接收到的response是一个 Stream 对象
-    // response.json()是一个异步操作，取出所有内容，并将其转为 JSON 对象
-    .then(response => response.json())
-    .then(res => {
-      // console.log(res);
-      userId = res['body']['user']['userId'];
-
-      var ke = document.createElement("a");
-      ke.classList.add("ke");
-      url = "https://kemono.party/fanbox/user/" + userId
-      if (postId != null) url += "/post/" + postId;
-      ke.setAttribute("href", url);
-      ke.setAttribute("target", "_blank")
-      document.body.appendChild(ke);
-    })//获取到的json数据
-    .catch(err => console.log('Request Failed', err));
-
-}
-
-main();
-window.addEventListener('pushState', main);
-window.addEventListener('popstate', main);
+    let postId = window.location.href.match(/(?<=posts\/)([^\/]*)/);
+    postId = postId && postId[0];
+    if (!users[creatorId]) {
+      const r = await fetch("https://api.fanbox.cc/creator.get?creatorId=" + creatorId);
+      const res = await r.json();
+      users[creatorId] = res.body.user;
+    }
+    const userId = users[creatorId].userId;
+    ke = document.createElement("a");
+    ke.classList.add("ke");
+    let url = 'https://kemono.su/fanbox/user/' + userId
+    if (postId != null) url += '/post/' + postId;
+    ke.setAttribute('href', url);
+    ke.setAttribute('target', '_blank')
+    document.body.appendChild(ke);
+  }
+  main();
+  window.addEventListener('popstate', main);
+  let pathname = window.location.pathname;
+  setInterval(() => {
+    if (window.location.pathname != pathname) {
+      pathname = window.location.pathname;
+      main();
+    }
+  }, 100);
+})();

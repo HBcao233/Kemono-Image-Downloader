@@ -8,11 +8,11 @@ chrome.storage.sync.get('format', (res) => {
 
 function getNow() {
   let t = new Date();
-  return  `${t.getFullYear()}/${(t.getMonth() + 1)}/${t.getDate()} ${t.getHours()}:${t.getMinutes()}:${t.getSeconds()}`;
+  return `${t.getFullYear()}/${(t.getMonth() + 1)}/${t.getDate()} ${t.getHours()}:${t.getMinutes()}:${t.getSeconds()}`;
 }
 
 function addTask(name, bgid) {
-  chrome.storage.sync.get('tasks', (res)=>{
+  chrome.storage.sync.get('tasks', (res) => {
     let tasks = res.tasks || [];
     tasks.push({
       name: name,
@@ -25,7 +25,7 @@ function addTask(name, bgid) {
 }
 
 function removeTask(bgid) {
-  chrome.storage.sync.get('tasks', (res)=>{
+  chrome.storage.sync.get('tasks', (res) => {
     let tasks = res.tasks || [];
     for (let i in tasks) {
       if (tasks[i].bgid == bgid) {
@@ -91,24 +91,12 @@ chrome.runtime.onMessage.addListener(async function (message, sender, sendRespon
   sendResponse();
   if (message.task) {
     var bgid = await download(message.task.url, message.task.name);
-    log('[' + getNow() + ']', message.task.name, '('+bgid+')', '开始');
+    log('[' + getNow() + ']', message.task.name, '(' + bgid + ')', '开始');
 
     var res = await wait_complete(bgid);
     removeTask(bgid);
 
-    log('[' + getNow() + ']', message.task.name, '('+bgid+')', '完成');
+    log('[' + getNow() + ']', message.task.name, '(' + bgid + ')', '完成');
     sendMessageToContentScript({ task: res });
   }
 });
-
-
-chrome.downloads.onDeterminingFilename.addListener(
-  (item, suggest)=>{
-    // log(item);
-    if (item.exists) {
-      chrome.downloads.cancel(item.id)
-      log('[' + getNow() + ']', '('+item.id+')', '文件已存在');
-    }
-    return true;
-  }
-)

@@ -1,4 +1,4 @@
-var area = document.querySelector("textarea");
+const area = document.querySelector("textarea");
 chrome.storage.sync.get('format', (res) => {
   area.value = res.format;
 })

@@ -23,27 +23,35 @@ const css = `
 `;
 
 const KD = (function () {
-  var now = 0, len = 0, info = [],
-    $ = (s, o = document) => { return o.querySelector(s) };
+  'use strict';
+  let now = 0, len = 0;
   return {
-    that: this,
-    init: function () {
-      var that = this;
-      chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+    get_info: async function () {
+      const path = window.location.pathname.split('/');
+      const uid = path[3];
+      const pid = path[5];
+      const r = await fetch(`https://kemono.su/api/v1/fanbox/user/${uid}/post/${pid}`);
+      this.info = await r.json();
+      this.info.source = path[1];
+      const r1 = await fetch(`https://kemono.su/api/v1/fanbox/user/${uid}/profile`);
+      this.info.author = await r1.json();
+    },
+    init: async function () {
+      chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (request.log) console.log(...request.log);
         if (request.task) {
-          that.downloader.complete(request.task);
+          this.downloader.complete(request.task);
         }
         sendResponse();
       });
 
-      var style = document.createElement("style");
+      const style = document.createElement("style");
       style.innerHTML = css;
       document.body.appendChild(style);
 
-      var download = document.createElement("div");
+      const download = document.createElement("div");
       download.classList.add("download");
-      var process = document.createElement("div");
+      const process = document.createElement("div");
       process.classList.add("process");
       download.appendChild(process);
       document.body.appendChild(download);
@@ -62,101 +70,87 @@ const KD = (function () {
           .replaceAll('~', '_')
       }
 
-      info['author'] = trim($('.post__user-name').innerText);
-
-      let a = $('.post__title > span').style.textTransform;
-      $('.post__title > span').style.textTransform = 'none';
-      info['title'] = trim($('.post__title > span').innerText);
-      $('.post__title > span').style.textTransform = a;
-
-      info['source'] = trim($('.post__title > span:nth-child(2)').innerText);
-
-      if ($('.post__published > .timestamp')) {
-        var datetime = trim($('.post__published > .timestamp').innerText), arr = datetime.split(' ');
-        info['date'] = arr[0];
-        info['time'] = arr[1];
-      } else {
-        var datetime = trim($('.post__published').innerText.replaceAll('Published:', '')), arr = datetime.split(' ');
-        info['date'] = arr[0];
-        info['time'] = arr[1];
-      }
-
-      info['userid'] = $('meta[name=user]').getAttribute('content');
-      info['postid'] = $('meta[name=id]').getAttribute('content');
-
-      download.onclick = function () {
+      await this.get_info();
+      download.onclick = () => {
         now = 0;
-        var imgs = document.querySelectorAll('.post__thumbnail .fileThumb');
-        var downloads = document.querySelectorAll('.post__attachment-link');
-        len = imgs.length + downloads.length;
-
-        var format = '';
         chrome.storage.sync.get('format', (res) => {
-          format = res.format;
-          for (let i = 0; i < imgs.length; i++) {
-            var url = imgs[i].href;
-            // console.log(imgs[i].href);
-            var arr = url.split('.')
-            var ext = arr.slice(-1);
-            var name = format.replaceAll('{author}', info['author'])
-              .replaceAll('{author}', info['title'])
-              .replaceAll('{title}', info['title'])
-              .replaceAll('{userid}', info['userid'])
-              .replaceAll('{postid}', info['postid'])
-              .replaceAll('{source}', info['source'])
-              .replaceAll('{date}', info['date'])
-              .replaceAll('{time}', info['time'])
+          const format = res.format || '{author}/{date} {title}/{index}.{ext}';
+          const down = (url, i) => {
+            const arr = url.split('.')
+            const ext = arr.slice(-1);
+            const datetime = this.info.post.published.split('T');
+            const date = datetime[0];
+            const time = datetime[1];
+            const name = format
+              .replaceAll('{author}', trim(this.info.author.name))
+              .replaceAll('{title}', trim(this.info.post.title))
+              .replaceAll('{userid}', this.info.author.id)
+              .replaceAll('{postid}', this.info.post.id)
+              .replaceAll('{source}', this.info.source)
+              .replaceAll('{date}', date)
+              .replaceAll('{time}', trim(time))
               .replaceAll('{index}', i)
               .replaceAll('{index+1}', i + 1)
               .replaceAll('{ext}', ext);
-            that.downloader.add({
+            // console.log(name);
+            this.downloader.add({
               url: url,
               name: name,
             });
           }
 
-          for (let i = 0; i < downloads.length; i++) {
-            let url = downloads[i].href;
-            var filename = downloads[i].innerText;
-            filename = trim(filename.replace('Download', ''));
-            var arr = filename.split('.');
-            var ext = arr.slice(-1);
-            let newArr = arr.slice(0, arr.length);
-            newArr.pop();
-            filename = newArr.join("");
-
-            var name = format.replaceAll('{author}', info['author'])
-              .replaceAll('{author}', info['title'])
-              .replaceAll('{title}', info['title'])
-              .replaceAll('{userid}', info['userid'])
-              .replaceAll('{postid}', info['postid'])
-              .replaceAll('{source}', info['source'])
-              .replaceAll('{date}', info['date'])
-              .replaceAll('{time}', info['time'])
-              .replaceAll('{index}', filename)
-              .replaceAll('{index+1}', filename)
-              .replaceAll('{ext}', ext);
-            that.downloader.add({
-              url: url,
-              name: name,
-            });
+          if (this.info.post.file.path) {
+            len = 1;
+            down(window.location.origin + this.info.post.file.path, 0);
+          }
+          if (this.info.post.attachments.length > 0) {
+            len += this.info.post.attachments.length;
+            for (let i = 0; i < this.info.post.attachments.length; i++) {
+              down(window.location.origin + this.info.post.attachments[i].path, i + 1);
+            }
+          }
+          if (len == 0) {
+            process.style.left = 'unset';
+            process.innerText = '无内容可下载';
+          } else {
+            process.style.left = '0';
           }
         })
+      };
 
-      }
+      let pathname = window.location.pathname;
+      setInterval(() => {
+        if (window.location.pathname != pathname) {
+          pathname = window.location.pathname;
+          const path = pathname.split('/');
+          if (path.length < 6) {
+            download.style.display = 'none';
+          } else {
+            this.get_info().then(() => {
+              download.style.display = 'block';
+              process.innerText = '';
+            });
+          }
+        }
+      }, 100);
     },
     downloader: (function () {
-      let tasks = [], thread = 0, max_thread = 2, retry = 0, max_retry = 2, failed = 0;
       return {
+        tasks: [],
+        thread: 0,
+        max_thread: 2,
+        retry: 0,
+        max_retry: 2,
+        failed: 0,
         add: function (task) {
-          tasks.push(task);
-          if (thread < max_thread) {
-            thread += 1;
+          this.tasks.push(task);
+          if (this.thread < this.max_thread) {
+            this.thread += 1;
             this.next();
           } else this.update();
         },
         next: async function () {
-          let task = tasks.shift();
+          const task = this.tasks.shift();
           this.start(task);
         },
         start: function (task) {
@@ -164,41 +158,29 @@ const KD = (function () {
           chrome.runtime.sendMessage({ task: task });
         },
         complete: function (task) {
-          if (task.status == 1) {
+          if (task.status == 1 || task.error.error == "USER_CANCELED") {
             now++;
             this.update();
-            thread--;
+            this.thread--;
             this.next();
           } else {
-            if (task.error.error == "USER_CANCELED") {
-              if (!task.error.exists) {
-                let time = parseInt(Date.parse(new Date()) / 1000);
-                console.log('[' + time + ']', task.id, '用户取消');
-              }
-              now++;
-              this.update();
-              thread--;
-              this.next();
-            } else {
-              console.error(task);
-            }
-            
+            console.error('下载失败', task.error);
           }
         },
         retry: function (task, result) {
-          retry += 1;
-          if (retry == 3) max_thread = 1;
-          if (task.retry && task.retry >= max_retry ||
+          this.retry += 1;
+          if (this.retry == 3) this.max_thread = 1;
+          if (task.retry && task.retry >= this.max_retry ||
             result.details && result.details.current == 'USER_CANCELED') {
             task.onerror(result);
             failed += 1;
           } else {
-            if (max_thread == 1) task.retry = (task.retry || 0) + 1;
+            if (this.max_thread == 1) task.retry = (task.retry || 0) + 1;
             this.add(task);
           }
         },
         update: function () {
-          $('.process').innerHTML = now + "/" + len;
+          document.querySelector('.process').innerText = now + "/" + len;
         }
       };
     })(),
@@ -209,8 +191,4 @@ const KD = (function () {
 (function () {
   'use strict';
   KD.init();
-  // new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(node => {
-  //   let article = node.tagName == 'DIV' && (node.querySelector('article') || node.closest('article'));
-  //   if (article && !article.dataset.injected) KD.inject(article);
-  // }))).observe(document.body, { childList: true, subtree: true });
 })();
