@@ -1,4 +1,9 @@
-const css = `
+
+
+(function () {
+  'use strict';
+
+  const css = `
 .download{
   position: fixed;
   width:30px;
@@ -22,18 +27,24 @@ const css = `
 }
 `;
 
-const KD = (function () {
-  'use strict';
+  const MAX_RETRY = 2;
+
+  function getNow() {
+    let t = new Date();
+    return `${t.getFullYear()}-${(t.getMonth() + 1)}-${t.getDate()} ${t.getHours()}:${t.getMinutes()}:${t.getSeconds()}`;
+  }
+
   let now = 0, len = 0;
-  return {
+  const KD = {
     get_info: async function () {
       const path = window.location.pathname.split('/');
+      const source = path[1];
       const uid = path[3];
       const pid = path[5];
-      const r = await fetch(`https://kemono.su/api/v1/fanbox/user/${uid}/post/${pid}`);
+      const r = await fetch(`https://kemono.su/api/v1/${source}/user/${uid}/post/${pid}`);
       this.info = await r.json();
-      this.info.source = path[1];
-      const r1 = await fetch(`https://kemono.su/api/v1/fanbox/user/${uid}/profile`);
+      this.info.source = source;
+      const r1 = await fetch(`https://kemono.su/api/v1/${source}/user/${uid}/profile`);
       this.info.author = await r1.json();
     },
     init: async function () {
@@ -135,17 +146,15 @@ const KD = (function () {
       }, 100);
     },
     downloader: (function () {
+      let thread = 0;
+      let max_thread = 2;
+      let failed = 0;
       return {
         tasks: [],
-        thread: 0,
-        max_thread: 2,
-        retry: 0,
-        max_retry: 2,
-        failed: 0,
         add: function (task) {
           this.tasks.push(task);
-          if (this.thread < this.max_thread) {
-            this.thread += 1;
+          if (thread < max_thread) {
+            thread += 1;
             this.next();
           } else this.update();
         },
@@ -161,21 +170,21 @@ const KD = (function () {
           if (task.status == 1 || task.error.error == "USER_CANCELED") {
             now++;
             this.update();
-            this.thread--;
+            thread--;
             this.next();
           } else {
-            console.error('下载失败', task.error);
+            console.warn(`[${getNow()}] ${task.name} (${task.id}) 下载失败: ${task.error.error}`);
+            chrome.runtime.sendMessage({ s: 'task_retry', task_id: task.id });
+            this.retry(task);
           }
         },
-        retry: function (task, result) {
-          this.retry += 1;
-          if (this.retry == 3) this.max_thread = 1;
-          if (task.retry && task.retry >= this.max_retry ||
-            result.details && result.details.current == 'USER_CANCELED') {
-            task.onerror(result);
+        retry: function (task) {
+          max_thread = 1;
+          if (task.retry && task.retry >= MAX_RETRY) {
             failed += 1;
+            console.error('下载失败', task);
           } else {
-            if (this.max_thread == 1) task.retry = (task.retry || 0) + 1;
+            if (max_thread == 1) task.retry = (task.retry || 0) + 1;
             this.add(task);
           }
         },
@@ -186,9 +195,5 @@ const KD = (function () {
     })(),
 
   };
-})();
-
-(function () {
-  'use strict';
   KD.init();
 })();

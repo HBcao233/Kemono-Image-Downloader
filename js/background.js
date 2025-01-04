@@ -8,7 +8,7 @@ chrome.storage.sync.get('format', (res) => {
 
 function getNow() {
   let t = new Date();
-  return `${t.getFullYear()}/${(t.getMonth() + 1)}/${t.getDate()} ${t.getHours()}:${t.getMinutes()}:${t.getSeconds()}`;
+  return `${t.getFullYear()}-${(t.getMonth() + 1)}-${t.getDate()} ${t.getHours()}:${t.getMinutes()}:${t.getSeconds()}`;
 }
 
 function addTask(name, bgid) {
@@ -99,4 +99,10 @@ chrome.runtime.onMessage.addListener(async function (message, sender, sendRespon
     log('[' + getNow() + ']', message.task.name, '(' + bgid + ')', '完成');
     sendMessageToContentScript({ task: res });
   }
+  switch (message.s) {
+    case 'task_retry':
+      chrome.downloads.resume(message.task_id);
+      break;
+  }
+
 });
